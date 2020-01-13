@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>学生excel</title>
+</head>
+<!-- 引入jquery  -->
+<script type="text/javascript" src="/js/jquery-3.3.1.min.js"></script>
+<!--引入ztree-->
+<link rel="stylesheet" href="/js/zTree-zTree_v3-master/css/zTreeStyle/zTreeStyle.css" type="text/css"/>
+<script src="/js/zTree-zTree_v3-master/js/jquery.ztree.all.min.js"></script>
+<!-- 引入bootstrap -->
+<link href="/js/bootstrap-3.3.7-dist/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="/js/bootstrap-3.3.7-dist/js/bootstrap.min.js"></script>
+<!-- 引入datatable -->
+<link href="/js/DataTables/css/jquery.dataTables.min.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="/js/DataTables/js/jquery.dataTables.min.js"></script>
+<!-- 引入bootbox -->
+<script type="text/javascript" src="/js/bootbox/bootbox.min.js"></script>
+<!-- 引入fileinput -->
+<link href="/js/bootstrap-fileinput-v5.0.6-17/css/fileinput.min.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="/js/bootstrap-fileinput-v5.0.6-17/js/fileinput.min.js"></script>
+
+<script>
+    var table1;//datatables对象
+    $(function(){
+        queryList();
+    });
+    //====================查询页面=========================
+    function queryList(){
+        table1=$('#tab').DataTable({
+            "serverSide": true,
+            "dataSrc":"data",
+            ajax: {
+                url:'http://localhost:8080/stu/querystu.do',
+                type: 'POST',
+
+            },
+
+            language: {//国际化
+                "sProcessing": "处理中...",
+                "sLengthMenu": "每页 _MENU_ 条数据",
+                "sZeroRecords": "没有匹配结果",
+                "sInfo": "显示第 _START_ 至 _END_ 项结果，共 _TOTAL_ 项",
+                "sInfoEmpty": "显示第 0 至 0 项结果，共 0 项",
+                "sInfoFiltered": "(由 _MAX_ 项结果过滤)",
+                "sInfoPostFix": "",
+                "sSearch": "搜索:",
+                "sUrl": "",
+                "sEmptyTable": "表中数据为空",
+                "sLoadingRecords": "载入中...",
+                "sInfoThousands": ",",
+                "oPaginate": {
+                    "sFirst": "首页",
+                    "sPrevious": "上页",
+                    "sNext": "下页",
+                    "sLast": "末页"
+                },
+                "oAria": {
+                    "sSortAscending": ": 以升序排列此列",
+                    "sSortDescending": ": 以降序排列此列"
+                }
+            },
+            processing:true,//开启请求进度
+            ordering:false,//是否启用排序b
+            searching: false,//是否启用搜索,
+
+            lengthMenu:[1,2,3],
+            columns: [
+                {title:"学生ID", data: 'id' },
+                {title:"学生名称", data: 'name' },
+                {title:"学生年龄", data: 'age' },
+                {title:"家庭住址", data: 'address' },
+                {title:"使用IP", data: 'idaddrs' },
+                { title:"学生生日",data: 'birthday', "render": function(data,type,row,meta){
+                        var date=new Date(data);
+                        return timestampToTime(date);
+                    }},
+                {title:"图片", data: 'picimg', "render": function(data,type,row,meta){
+                        var img='<img  width="50px" src="'+data+'" >';
+                        return img;
+                    }
+                },
+                { title:"操作",data: 'id', "render": function ( data, type, full, meta ) {
+                        var str='<button onclick="toUpdate('+data+')" class="btn btn-primary">修改</button><button  onclick="deletestu('+data+')" class="btn btn-danger">删除</button>';
+                        return str;
+                    }},
+            ]
+
+        });
+    }
+    //===============时间格式化+删除=====================
+    function timestampToTime(date) {
+        Y = date.getFullYear() + '-';
+        M = (date.getMonth()+1 < 10 ? '0'+(date.getMonth()+1) : date.getMonth()+1) + '-';
+        D = date.getDate() + ' ';
+        return Y+M+D;
+
+    }
+
+    function deletestu(id) {
+        $.post({
+            url:"http://localhost:8080/stu/updateisdel.do",
+            data:{"id":id},
+            dataType:"json",
+            success:function () {
+                table1.ajax.reload();
+            }
+        })
+    }
+
+    var addstulog;
+    function addstuc() {
+        var html=$("#addstuDiv").html();
+        addstulog=bootbox.dialog({
+            title:"新增信息",
+            message:html
+        })
+        $("#imgs",addstulog).fileinput({
+            uploadUrl:"http://localhost:8080/stu/savefile.do", //上传的地址
+            browseClass:"btn btn-success", //按钮样式
+            dropZoneEnabled: false
+        }).on("fileuploaded", function(e, data, previewiId, index) {
+            //把文件的访问路径  赋给隐藏域
+            $("#inputValue",addstulog).val(data.response.filePath);
+        });
+    }
+
+    function addstu() {
+        var name=$("#name",addstulog).val();
+        var birthday=$("#birthday",addstulog).val();
+        var address=$("#address",addstulog).val();
+        var inputValue=$("#inputValue",addstulog).val();
+        $.post({
+            url:"http://localhost:8080/stu/addstudent.do",
+            data:{
+                "name":name,
+                "birthday":birthday,
+                "address":address,
+                "picimg":inputValue
+            },
+            dataType:"json",
+            success:function (rs) {
+                if (rs.code==200) {
+                    addstulog.modal("hide");
+                    table1.ajax.reload();
+                }
+
+            }
+        })
+    }
+
+    var upstulog;
+    function toUpdate(id) {
+    var html=$("#upstuDiv").html();
+        upstulog=bootbox.dialog({
+            title:"修改",
+            message:html
+        })
+        $("#upimgs",upstulog).fileinput({
+            uploadUrl:"http://localhost:8080/stu/savefile.do", //上传的地址
+            browseClass:"btn btn-success", //按钮样式
+            dropZoneEnabled: false
+        }).on("fileuploaded", function(e, data, previewiId, index) {
+            //把文件的访问路径  赋给隐藏域
+            $("#newimg",upstulog).val(data.response.filePath);
+        });
+        $.post({
+            url:"http://localhost:8080/stu/queryid.do",
+            data:{"id":id},
+            dataType:"json",
+            success:function (rs) {
+                $("#id",upstulog).val(rs.id);
+              $("#upname",upstulog).val(rs.name);
+
+                var date=new Date(rs.birthday);
+                //格式化日期格式
+                var dataStr=timestampToTime(date);
+                //date插件  需要的是 yyyy-mm-dd
+                $("#upbirthday",upstulog).val(dataStr);
+
+                $("#upaddress",upstulog).val(rs.address);
+
+                $("#upimg",upstulog).attr("src",rs.picimg);
+                $("#oldimg",upstulog).val(rs.picimg);
+            }
+        })
+
+    }
+
+    function upstu() {
+        var id=$("#id",upstulog).val();
+        var name=$("#upname",upstulog).val();
+        var birthday=$("#upbirthday",upstulog).val();
+        var address=$("#upaddress",upstulog).val();
+        var newimg=$("#newimg",upstulog).val();
+        var oldimg=$("#oldimg",upstulog).val();
+        $.post({
+            url:"http://localhost:8080/stu/updatestudent.do",
+            data:{
+                "id":id,
+                "name":name,
+                "birthday":birthday,
+                "address":address,
+                "imgs":newimg,
+                "picimg":oldimg,
+            },
+            dataType:"json",
+            success:function (rs) {
+                if (rs.code==200) {
+                    upstulog.modal("hide");
+                    table1.ajax.reload();
+                }
+
+            }
+        })
+    }
+</script>
+<body>
+<table id="tab"></table>
+<button class="btn btn-success" onclick="addstuc()">新增学生信息</button>
+
+
+<div id="addstuDiv" style="display: none">
+    <form class="form-horizontal" role="form">
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">学生名称：</label>
+            <div class="col-sm-10">
+                <input type="text" class="form-control" id="name"
+                       placeholder="学生名称">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">学生生日：</label>
+            <div class="col-sm-10">
+                <input type="date" class="form-control" id="birthday">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">家庭住址：</label>
+            <div class="col-sm-10">
+                <input  class="form-control" id="address">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">头像：</label>
+            <div class="col-sm-10">
+                <input type="file" id="imgs" name="imgs">
+                <input id="inputValue">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label"></label>
+            <div class="col-sm-10">
+                <input type="button" value="保存" class="btn btn-success" onclick="addstu()">
+            </div>
+        </div>
+
+    </form>
+
+
+</div>
+
+
+<div id="upstuDiv" style="display: none">
+    <form class="form-horizontal" role="form">
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">学生名称：</label>
+            <div class="col-sm-10">
+                <input id="id" type="hidden">
+                <input type="text" class="form-control" id="upname"
+                       placeholder="学生名称">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">学生生日：</label>
+            <div class="col-sm-10">
+                <input  class="form-control" id="upbirthday">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">家庭住址：</label>
+            <div class="col-sm-10">
+                <input  class="form-control" id="upaddress">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label">头像：</label>
+            <div class="col-sm-10">
+
+                <img src="" id="upimg" name="newimgs" >
+                <input id="oldimg">
+
+                <input style="width: 150px;" type="file" id="upimgs" name="imgs" data-preview-file-type="text">
+                <input  type="text" id="newimg" >
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="firstname" class="col-sm-2 control-label"></label>
+            <div class="col-sm-10">
+                <input type="button" value="保存" class="btn btn-success" onclick="upstu()">
+            </div>
+        </div>
+
+    </form>
+
+
+</div>
+</body>
+</html>
